@@ -1,6 +1,10 @@
 # Brutus
 BRUTUS is a brute force tool that is used to brute force most websites
 
+# Update V 1.3.2
+<br>
+  Added usage of pw directory and sorted .txt usage the larger the pwlist go first
+
 # Update! v.1.3.1
 added arg support **yay**
 <br>
@@ -25,6 +29,8 @@ pip install selenium
 pip install requests
 ```
 Chrome and chromedriver are required
+
+(current 'chromedriver' in zip)
 
 You can download chromedriver here: http://chromedriver.chromium.org/downloads
 for this fork, create a folder in your C drive called 'webdrivers' and place the executable file inside. If you want to use a different directory, simply change the CHROME_DVR_DIR variable inside the python file.
