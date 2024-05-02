@@ -1,5 +1,5 @@
-# Hatch
-Hatch is a brute force tool that is used to brute force most websites
+# Brutus
+BRUTUS is a brute force tool that is used to brute force most websites
 
 # Update! v.1.3.1
 added arg support **yay**
