@@ -3,6 +3,7 @@ BRUTUS is a brute force tool that is used to brute force most websites
 # Update V 1.3.3
 <br>
   Added pw logging and progress indicator
+<br>
   Working on status with ctrl+p to pause and resume
 
 # Update V 1.3.2
