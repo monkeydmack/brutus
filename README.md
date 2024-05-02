@@ -38,6 +38,4 @@ for this fork, create a folder in your C drive called 'webdrivers' and place the
 5). When Asked put in the username to brute force<br>
 6). Watch it go!
 
-## How to use (Video)
-[![IMAGE ALT TEXT](https://i.ytimg.com/vi/Hd_kQVnajxk/1.jpg)](https://youtu.be/Hd_kQVnajxk "Video Title")
 
