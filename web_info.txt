@@ -1,0 +1,6 @@
+website: https://fifty.website/login/
+username_selector: #login
+password_selector: #password
+login_button_selector: body > div:nth-child(5) > form > center > table > tbody > tr:nth-child(5) > td > input
+target_username: srdrs
+password_list: pwlist.txt
