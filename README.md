@@ -1,5 +1,9 @@
 # Brutus
 BRUTUS is a brute force tool that is used to brute force most websites
+# Update V 1.3.3
+<br>
+  Added pw logging and progress indicator
+  Working on status with ctrl+p to pause and resume
 
 # Update V 1.3.2
 <br>
@@ -27,6 +31,8 @@ python main.py
 ```
 pip install selenium
 pip install requests
+pip install keyboard
+
 ```
 Chrome and chromedriver are required
 
