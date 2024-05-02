@@ -4,7 +4,7 @@ BRUTUS is a brute force tool that is used to brute force most websites
 <be>
 main-stable working without rockyou2021.txt
   <br>
-  main.py working with rockyou2021.py
+  main.py working with rockyou2021.txt
 <br>
   Added pw logging and progress indicator
 <br>
