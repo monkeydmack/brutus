@@ -9,19 +9,6 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException, InvalidSelectorException, WebDriverException
 from optparse import OptionParser
 
-# Graphics
-class Color:
-    PURPLE = '\033[95m'
-    CYAN = '\033[96m'
-    DARKCYAN = '\033[36m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    END = '\033[0m'
-    CWHITE = '\33[37m'
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
