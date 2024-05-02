@@ -9,7 +9,6 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException, InvalidSelectorException, WebDriverException
 from optparse import OptionParser
 
-
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
