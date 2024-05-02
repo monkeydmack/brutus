@@ -15,14 +15,14 @@ dont worry if you load up the tool without any args youll go to the default wiza
 Also i removed the apt xvfb and pip2 pyvirtualdisplay
 ## Installation Instructions
 ```
-git clone https://github.com/MetaChar/Hatch
-python2 main.py
+
+python main.py
 ```
 
 ## Requirements
 ```
-pip2 install selenium
-pip2 install requests
+pip install selenium
+pip install requests
 ```
 Chrome and chromedriver are required
 
